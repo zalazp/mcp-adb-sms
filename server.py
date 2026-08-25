@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from mcp.server.fastmcp import FastMCP
 
-from adb_client import AdbClient
+from adb_client import AdbClient, load_device_profile
 from sms_parser import SmsRecord
 
 mcp = FastMCP("adb-sms")
@@ -61,12 +61,13 @@ def adb_list_devices() -> str:
 
 @mcp.tool()
 def adb_get_sim_numbers(serial: str | None = None) -> str:
-    """Read SIM phone numbers from the connected device. Returns empty if unavailable."""
+    """Get phone numbers for the connected device from devices.json (user-configured)."""
     target = _resolve_serial(serial)
     if not target:
         return json.dumps({"error": "No device in 'device' state", "numbers": []}, ensure_ascii=False)
 
-    sims = client.get_sim_numbers(serial=target)
+    sims = client.get_phone_numbers(serial=target)
+    has_config = load_device_profile(target) is not None
     return json.dumps(
         {
             "serial": target,
@@ -75,12 +76,15 @@ def adb_get_sim_numbers(serial: str | None = None) -> str:
                     "slot": s.slot,
                     "number": s.number,
                     "display_name": s.display_name,
-                    "icc_id": s.icc_id,
                     "available": s.available,
                 }
                 for s in sims
             ],
-            "hint": "If number is empty, enter it manually on the web login form.",
+            "source": "devices.json" if has_config else "missing",
+            "hint": (
+                "Phone numbers are user-configured in devices.json keyed by adb serial. "
+                f"Add entry for serial {target} if empty."
+            ),
         },
         ensure_ascii=False,
         indent=2,

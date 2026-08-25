@@ -30,14 +30,23 @@ cd mcp-adb-sms
 py -3.12 -m pip install -r requirements.txt
 ```
 
-### 设备手机号配置（可选）
+### 设备手机号配置（必填）
 
-adb 常读不到 SIM 号码，可复制模板并填写：
+手机号**不由 adb 读取**，请用户自行配置：
 
-```powershell
-copy devices.json.example devices.json
-# 编辑 devices.json：把 YOUR_DEVICE_SERIAL 换成 adb devices 里的 serial
+1. `adb devices` 查看 serial（如 `10AD410LNF000PX`）
+2. 复制 `devices.json.example` → `devices.json`
+3. 以 serial 为 key，填入该手机的**全部**手机号
+
+```json
+{
+  "10AD410LNF000PX": {
+    "phone_numbers": ["18317840243", "19139582095"]
+  }
+}
 ```
+
+adb 只负责：**识别当前连接设备** + **读短信验证码**。
 
 ## Cursor 配置
 
@@ -80,9 +89,9 @@ py -3.12 test_local.py
 
 | 工具 | 说明 |
 |------|------|
-| `adb_health_check` | 诊断设备、SMS、SIM/配置号码 |
+| `adb_health_check` | 诊断设备、SMS、devices.json 是否已配置 |
 | `adb_list_devices` | 列出 ADB 设备 |
-| `adb_get_sim_numbers` | SIM 或 devices.json 中的手机号 |
+| `adb_get_sim_numbers` | 从 devices.json 读取该 serial 的手机号 |
 | `adb_read_recent_sms` | 最近 N 条短信 |
 | `adb_wait_for_otp` | Web 发码后轮询等新验证码 |
 | `adb_grant_sms_permission` | Android 11+ 授权 shell 读 SMS |

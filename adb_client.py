@@ -10,7 +10,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from sms_parser import SmsRecord, parse_content_query_output, parse_content_query_rows
+from sms_parser import SmsRecord, parse_content_query_output
 
 DEVICES_JSON = Path(__file__).resolve().parent / "devices.json"
 
@@ -25,7 +25,8 @@ def load_device_profile(serial: str | None) -> dict | None:
         return None
 
 
-def sims_from_profile(serial: str | None) -> list["SimInfo"]:
+def phone_numbers_from_config(serial: str | None) -> list["SimInfo"]:
+    """Return phone numbers from devices.json for the connected device serial."""
     profile = load_device_profile(serial)
     if not profile:
         return []
@@ -33,12 +34,13 @@ def sims_from_profile(serial: str | None) -> list["SimInfo"]:
     return [
         SimInfo(
             slot=idx,
-            number=number,
-            display_name=f"SIM{idx + 1} (profile)",
+            number=str(number).strip(),
+            display_name=f"SIM{idx + 1}",
             icc_id="",
-            available=True,
+            available=bool(str(number).strip()),
         )
         for idx, number in enumerate(numbers)
+        if str(number).strip()
     ]
 
 
@@ -64,9 +66,7 @@ class AdbClient:
         "content query",
         "content read",
         "dumpsys telephony",
-        "dumpsys iphonesubinfo",
         "dumpsys notification",
-        "cmd phone",
         "getprop",
         "settings get",
         "appops set com.android.shell READ_SMS allow",
@@ -159,69 +159,24 @@ class AdbClient:
 
         return devices
 
-    def get_sim_numbers(self, serial: str | None = None) -> list[SimInfo]:
-        sims: list[SimInfo] = []
-
-        try:
-            raw = self.shell(
-                "content query --uri content://telephony/siminfo "
-                "--projection _id,display_name,number,icc_id",
-                serial=serial,
-            )
-            for idx, row in enumerate(parse_content_query_rows(raw)):
-                number = row.get("number", "")
-                sims.append(
-                    SimInfo(
-                        slot=idx,
-                        number=_normalize_phone(number),
-                        display_name=row.get("display_name", f"SIM{idx + 1}"),
-                        icc_id=row.get("icc_id", ""),
-                        available=bool(number and number not in ("", "null")),
-                    )
-                )
-        except RuntimeError:
-            pass
-
-        if not sims:
-            sims = self._sim_from_dumpsys(serial)
-
-        if not sims or not any(s.available for s in sims):
-            profile_sims = sims_from_profile(serial)
-            if profile_sims:
-                sims = profile_sims
-
-        if not sims:
-            sims.append(
-                SimInfo(
-                    slot=0,
-                    number="",
-                    display_name="unknown",
-                    icc_id="",
-                    available=False,
-                )
-            )
-
-        return sims
-
-    def _sim_from_dumpsys(self, serial: str | None) -> list[SimInfo]:
-        sims: list[SimInfo] = []
-        try:
-            raw = self.shell("dumpsys iphonesubinfo", serial=serial, timeout=15)
-        except RuntimeError:
+    def get_phone_numbers(self, serial: str | None = None) -> list[SimInfo]:
+        """Phone numbers come from devices.json only (key = adb device serial)."""
+        sims = phone_numbers_from_config(serial)
+        if sims:
             return sims
-
-        numbers = re.findall(r"(?:Phone Number|string data=)[=: ]*([+\d]{7,15})", raw, re.IGNORECASE)
-        for idx, number in enumerate(dict.fromkeys(numbers)):
-            sims.append(
-                SimInfo(
-                    slot=idx,
-                    number=number.lstrip("+86") if number.startswith("+86") else number,
-                    display_name=f"SIM{idx + 1}",
-                    icc_id="",
-                    available=True,
-                )
+        return [
+            SimInfo(
+                slot=0,
+                number="",
+                display_name="未配置",
+                icc_id="",
+                available=False,
             )
-        return sims
+        ]
+
+    def get_sim_numbers(self, serial: str | None = None) -> list[SimInfo]:
+        """Alias for get_phone_numbers (backward compatible)."""
+        return self.get_phone_numbers(serial=serial)
 
     def read_recent_sms(self, limit: int = 10, serial: str | None = None) -> list[SmsRecord]:
         raw = self.shell(
@@ -318,7 +273,7 @@ class AdbClient:
             except RuntimeError:
                 pass
 
-        sims = self.get_sim_numbers(serial=target)
+        sims = self.get_phone_numbers(serial=target)
         report["sim_numbers"] = [
             {
                 "slot": s.slot,
@@ -328,11 +283,6 @@ class AdbClient:
             }
             for s in sims
         ]
-        if not any(s.available for s in sims):
-            if not load_device_profile(target):
-                report["recommendations"].append(
-                    "SIM number not readable; enter phone number manually on web form"
-                )
         profile = load_device_profile(target)
         if profile:
             report["device_profile"] = {
@@ -340,17 +290,12 @@ class AdbClient:
                 "phone_numbers": profile.get("phone_numbers", []),
                 "source": "devices.json",
             }
+        else:
+            report["recommendations"].append(
+                f"在 devices.json 添加条目：\"{target}\": {{ \"phone_numbers\": [\"手机号1\", \"手机号2\"] }}"
+            )
 
         return report
-
-
-def _normalize_phone(number: str) -> str:
-    number = number.strip()
-    if number.startswith("+86"):
-        return number[3:]
-    if number.startswith("86") and len(number) > 11:
-        return number[2:]
-    return number
 
 
 def _extract_field(block: str, field: str) -> str:

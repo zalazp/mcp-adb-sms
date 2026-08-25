@@ -3,8 +3,9 @@
     "model": "Example",
     "brand": "Example",
     "phone_numbers": [
-      "13800138000"
+      "13800138000",
+      "13900139000"
     ],
-    "note": "复制为 devices.json，填入本机 serial 与手机号；adb 读不到 SIM 时使用"
+    "note": "1) adb devices 查看 serial；2) 把该手机所有手机号填进 phone_numbers"
   }
 }
