@@ -21,12 +21,11 @@ mcp-adb-sms/
 1. Android 手机开启 **USB 调试** 并授权电脑
 2. `adb devices` 显示 `device`
 3. Python **3.10+**（推荐 3.12）
-4. [Android platform-tools](https://developer.android.com/tools/releases/platform-tools)（含 `adb`）
-
+   
 ## 安装
 
 ```powershell
-git clone https://github.com/<你的用户名>/mcp-adb-sms.git
+git clone https://github.com/zalazp/mcp-adb-sms.git
 cd mcp-adb-sms
 py -3.12 -m pip install -r requirements.txt
 ```
@@ -107,27 +106,7 @@ adb shell appops set com.android.shell READ_SMS allow
 
 或在 Agent 中调用 `adb_grant_sms_permission`，再执行 `adb_health_check`。
 
-## 发布到 GitHub
 
-在项目目录执行：
-
-```powershell
-cd E:\PTaas\mcp-adb-sms
-git init
-git add .
-git commit -m "Initial commit: adb-sms MCP for Cursor"
-gh repo create mcp-adb-sms --public --source=. --push
-```
-
-若无 `gh` CLI，可在 GitHub 网页新建空仓库后：
-
-```powershell
-git remote add origin https://github.com/<用户名>/mcp-adb-sms.git
-git branch -M main
-git push -u origin main
-```
-
-**注意**：`devices.json` 已在 `.gitignore` 中，不会上传手机号；公开仓库请勿提交真实号码。
 
 ## 安全说明
 
@@ -136,6 +115,3 @@ git push -u origin main
 - `adb_shell` 仅允许 content/dumpsys/getprop 等白名单命令
 - 仅限本人设备或已授权测试场景
 
-## License
-
-MIT（可按需修改）
