@@ -64,25 +64,6 @@ copy devices.json.example devices.json
 }
 ```
 
-**只需填两项**：`adb devices` 的 serial（作 key）+ `phone_numbers` 数组。
-
-`model`、`brand`、`note` 等字段**可不写**，工具不会读取，仅作你自己备注用：
-
-```json
-{
-  "10AD410LNF000PX": {
-    "phone_numbers": ["18317840243", "19139582095"],
-    "note": "测试机，双卡"
-  }
-}
-```
-
-| 字段 | 是否必填 | 说明 |
-|------|----------|------|
-| key（serial） | ✅ 必填 | `adb devices` 第一列 |
-| `phone_numbers` | ✅ 必填 | 该手机全部登录用手机号 |
-| `model` / `brand` / `note` | ❌ 可选 | 备注，程序忽略 |
-
 ## Cursor 配置
 
 编辑 `%USERPROFILE%\.cursor\mcp.json`：
