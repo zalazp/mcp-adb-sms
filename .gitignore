@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 本地设备档案（含手机号，勿提交）
+devices.json
+
+# IDE
+.idea/
+.vscode/
