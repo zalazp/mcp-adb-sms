@@ -34,6 +34,7 @@ mcp-adb-sms/
 2. `adb devices` 显示 `device`（非 `unauthorized`）
 3. Python **3.10+**（推荐 3.12）
 4. [Android platform-tools](https://developer.android.com/tools/releases/platform-tools)（含 `adb`）
+
 ## 安装
 
 ```powershell
@@ -57,8 +58,8 @@ copy devices.json.example devices.json
 {
   "10AD410LNF000PX": {
     "phone_numbers": [
-      "18317840243",
-      "19139582095"
+      "18300000000",
+      "19100000000"
     ]
   }
 }
@@ -72,7 +73,7 @@ copy devices.json.example devices.json
 {
   "mcpServers": {
     "adb-sms": {
-      "command": "py",
+      "command": "D:\\Python312\\python.exe",
       "args": [
         "-3.12",
         "E:\\path\\to\\mcp-adb-sms\\server.py"
@@ -85,10 +86,11 @@ copy devices.json.example devices.json
 }
 ```
 
-| 字段 | 说明 |
-|------|------|
-| `args` 中的路径 | 改成 clone 目录下 `server.py` 的**绝对路径** |
-| `ADB_PATH` | 本机 `adb.exe` 绝对路径；已在 PATH 中可写 `"adb"` |
+| 字段            | 说明                                              |
+| --------------- | ------------------------------------------------- |
+| command         | Python **3.10+**（推荐 3.12）的绝对路径           |
+| `args` 中的路径 | 改成 clone 目录下 `server.py` 的**绝对路径**      |
+| `ADB_PATH`      | 本机 `adb.exe` 绝对路径；已在 PATH 中可写 `"adb"` |
 
 保存后 **重启 Cursor**，MCP 面板中 `adb-sms` 应变绿。
 
@@ -97,7 +99,7 @@ copy devices.json.example devices.json
 ```powershell
 cd mcp-adb-sms
 $env:ADB_PATH="D:\RJAZ\Sdk\platform-tools\adb.exe"
-py -3.12 test_local.py
+D:\Python312\python.exe test_local.py
 ```
 
 正常输出示例：
@@ -108,8 +110,8 @@ py -3.12 test_local.py
   "devices": [{ "serial": "10AD410LNF000PX", "state": "device" }],
   "sms_readable": true,
   "sim_numbers": [
-    { "number": "13800138000", "available": true },
-    { "number": "13900139000", "available": true }
+    { "number": "18300000000", "available": true },
+    { "number": "19100000000", "available": true }
   ],
   "device_profile": { "source": "devices.json" }
 }
@@ -119,15 +121,15 @@ py -3.12 test_local.py
 
 ## MCP 工具
 
-| 工具 | 说明 |
-|------|------|
-| `adb_health_check` | 诊断 adb、短信可读性、`devices.json` 是否已配置 |
-| `adb_list_devices` | 列出已连接 ADB 设备 |
-| `adb_get_sim_numbers` | 从 `devices.json` 读取当前 serial 的手机号 |
-| `adb_read_recent_sms` | 读取最近 N 条短信 |
-| `adb_wait_for_otp` | Web 点击发送验证码后，轮询等待新 OTP |
-| `adb_grant_sms_permission` | Android 11+ 尝试授权 shell 读 SMS |
-| `adb_shell` | 受限 adb shell（白名单命令） |
+| 工具                       | 说明                                            |
+| -------------------------- | ----------------------------------------------- |
+| `adb_health_check`         | 诊断 adb、短信可读性、`devices.json` 是否已配置 |
+| `adb_list_devices`         | 列出已连接 ADB 设备                             |
+| `adb_get_sim_numbers`      | 从 `devices.json` 读取当前 serial 的手机号      |
+| `adb_read_recent_sms`      | 读取最近 N 条短信                               |
+| `adb_wait_for_otp`         | Web 点击发送验证码后，轮询等待新 OTP            |
+| `adb_grant_sms_permission` | Android 11+ 尝试授权 shell 读 SMS               |
+| `adb_shell`                | 受限 adb shell（白名单命令）                    |
 
 ### Agent 典型流程（短信登录）
 
@@ -159,6 +161,3 @@ adb shell appops set com.android.shell READ_SMS allow
 - `adb_shell` 仅允许 content / dumpsys / getprop 等白名单命令
 - 仅限本人设备或已授权测试场景
 
-## License
-
-MIT
