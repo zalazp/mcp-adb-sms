@@ -42,6 +42,8 @@ cd mcp-adb-sms
 py -3.12 -m pip install -r requirements.txt
 ```
 
+> **注意**：`requirements.txt` 锁定 `mcp` 1.x（`>=1.28.1,<2.0.0`）。若曾误装 2.x 导致 MCP 变红，先执行 `py -3.12 -m pip install -r requirements.txt` 降级，再重启 Cursor。
+
 ### 配置手机号（必填）
 
 手机号**不由 adb 读取**，请自行写入 `devices.json`：

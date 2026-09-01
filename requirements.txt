@@ -1,1 +1,2 @@
-mcp>=1.0.0
+# server.py uses FastMCP (mcp.server.fastmcp). SDK 2.x removed it → Cursor shows Connection closed.
+mcp>=1.28.1,<2.0.0
