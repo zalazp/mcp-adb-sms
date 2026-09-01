@@ -179,16 +179,37 @@ class AdbClient:
         return self.get_phone_numbers(serial=serial)
 
     def read_recent_sms(self, limit: int = 10, serial: str | None = None) -> list[SmsRecord]:
-        raw = self.shell(
-            f"content query --uri content://sms/inbox "
-            f"--projection address,body,date "
-            f"--sort 'date DESC' --limit {limit}",
-            serial=serial,
+        """Read recent SMS. Some OEM builds reject `--limit`; slice in Python."""
+        uris = (
+            "content://sms/inbox",
+            "content://sms",
         )
-        return parse_content_query_output(raw)
+        records: list[SmsRecord] = []
+        last_raw = ""
+
+        for uri in uris:
+            raw = self.shell(
+                f"content query --uri {uri} "
+                "--projection address,body,date "
+                "--sort 'date DESC'",
+                serial=serial,
+                timeout=60,
+            )
+            last_raw = raw
+            if _looks_like_content_query_error(raw):
+                continue
+            records = parse_content_query_output(raw)
+            if records:
+                break
+
+        if not records and last_raw and not _looks_like_content_query_error(last_raw):
+            # Permission OK but parser got nothing — surface a hint in logs via empty list.
+            pass
+
+        return records[:limit]
 
     def read_sms_fallback(self, limit: int = 10, serial: str | None = None) -> list[SmsRecord]:
-        """Fallback via notification dump when content://sms is blocked."""
+        """Fallback via notification dump when content://sms is blocked or delayed."""
         records: list[SmsRecord] = []
         try:
             raw = self.shell("dumpsys notification --noredact", serial=serial, timeout=20)
@@ -196,14 +217,19 @@ class AdbClient:
             return records
 
         blocks = re.split(r"\n\s*NotificationRecord\(", raw)
-        for block in blocks[1 : limit + 1]:
+        for block in blocks[1:]:
             title = _extract_field(block, "android.title")
             text = _extract_field(block, "android.text")
             big_text = _extract_field(block, "android.bigText")
             body = big_text or text or title
-            if body:
-                records.append(SmsRecord(address="", body=body, date=0))
-        return records
+            if not body:
+                continue
+            when_match = re.search(r"\bwhen=(\d{10,})", block)
+            date_ms = int(when_match.group(1)) if when_match else 0
+            records.append(SmsRecord(address=title, body=body, date=date_ms))
+
+        records.sort(key=lambda r: r.date, reverse=True)
+        return records[:limit]
 
     def try_grant_sms_permission(self, serial: str | None = None) -> str:
         try:
@@ -256,9 +282,22 @@ class AdbClient:
             return report
 
         try:
-            sms = self.read_recent_sms(limit=1, serial=target)
-            report["sms_readable"] = True
+            sms = self.read_recent_sms(limit=3, serial=target)
+            report["sms_readable"] = bool(sms)
             report["sms_sample_count"] = len(sms)
+            if not sms:
+                fallback = self.read_sms_fallback(limit=3, serial=target)
+                if fallback:
+                    report["sms_readable"] = True
+                    report["sms_source"] = "notification_fallback"
+                    report["sms_sample_count"] = len(fallback)
+                    report["recommendations"].append(
+                        "content://sms 为空或延迟；已用通知栏降级。vivo 验证码通知可能打码 ******。"
+                    )
+                else:
+                    report["recommendations"].append(
+                        "adb 可读但无短信行：若刚改过 server.py，请在 Cursor MCP 面板 Reload adb-sms。"
+                    )
         except RuntimeError as exc:
             report["sms_error"] = str(exc)
             report["recommendations"].append(
@@ -304,3 +343,14 @@ def _extract_field(block: str, field: str) -> str:
         return match.group(1).strip()
     match = re.search(rf"{re.escape(field)}=([^,\n]+)", block)
     return match.group(1).strip() if match else ""
+
+
+def _looks_like_content_query_error(raw: str) -> bool:
+    text = raw.strip().lower()
+    if not text:
+        return True
+    if "unsupported argument" in text or text.startswith("usage:"):
+        return True
+    if "usage: adb shell content" in text:
+        return True
+    return False

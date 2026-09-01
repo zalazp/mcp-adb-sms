@@ -31,7 +31,10 @@ def _resolve_serial(serial: str | None) -> str | None:
 
 def _load_sms(serial: str | None, limit: int = 10) -> list[SmsRecord]:
     try:
-        return client.read_recent_sms(limit=limit, serial=serial)
+        records = client.read_recent_sms(limit=limit, serial=serial)
+        if records:
+            return records
+        return client.read_sms_fallback(limit=limit, serial=serial)
     except RuntimeError:
         return client.read_sms_fallback(limit=limit, serial=serial)
 

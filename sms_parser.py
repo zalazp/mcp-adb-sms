@@ -15,6 +15,9 @@ OTP_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\b(\d{4})\b"),
 ]
 
+_ROW_DATE_RE = re.compile(r",\s*date=(\d+)\s*$")
+_ROW_FIELDS_RE = re.compile(r"^(?:_id=\d+,\s*)?address=([^,]+),\s*body=(.*)$", re.DOTALL)
+
 
 @dataclass
 class SmsRecord:
@@ -46,26 +49,34 @@ def parse_content_query_rows(raw: str) -> list[dict[str, str]]:
             continue
 
         payload = line.split(":", 1)[1].strip()
-        # Strip leading row index e.g. "0 _id=1, number=138..."
-        if " " in payload and "=" not in payload.split(" ", 1)[0]:
-            payload = payload.split(" ", 1)[1]
+        # Strip leading row index e.g. "0 address=1, body=..."
+        prefix, _, remainder = payload.partition(" ")
+        if prefix.isdigit() and remainder:
+            payload = remainder
 
-        row: dict[str, str] = {}
-        for part in payload.split(","):
-            part = part.strip()
-            if "=" not in part:
-                continue
-            key, _, value = part.partition("=")
-            row[key.strip()] = value.strip()
+        date_match = _ROW_DATE_RE.search(payload)
+        if not date_match:
+            continue
 
-        if row:
-            rows.append(row)
+        date = date_match.group(1)
+        head = payload[: date_match.start()]
+        fields_match = _ROW_FIELDS_RE.match(head)
+        if not fields_match:
+            continue
+
+        rows.append(
+            {
+                "address": fields_match.group(1).strip(),
+                "body": fields_match.group(2).strip(),
+                "date": date,
+            }
+        )
 
     return rows
 
 
 def parse_content_query_output(raw: str) -> list[SmsRecord]:
-    """Parse SMS inbox query output into SmsRecord list."""
+    """Parse SMS query output into SmsRecord list."""
     return [_row_to_record(row) for row in parse_content_query_rows(raw)]
 
 

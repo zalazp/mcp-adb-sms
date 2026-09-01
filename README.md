@@ -153,6 +153,25 @@ adb shell appops set com.android.shell READ_SMS allow
 
 仍失败时，MCP 会尝试 `dumpsys notification` 降级读取通知栏短信（精度较低）。
 
+### adb_read_recent_sms 返回 0 条（空数组）
+
+| 原因 | 处理 |
+|------|------|
+| **MCP 未 Reload** | 修改 `server.py` / `adb_client.py` 后，Cursor → **MCP 面板 → adb-sms → Reload**（或重启 Cursor） |
+| **vivo 不支持 `--limit`** | 已修复：改为 Python 侧截取；旧进程仍会返回 0 |
+| **body 含逗号解析截断** | 已修复 `sms_parser.py`；Reload 后 OTP 提取才正常 |
+| **vivo 验证码未入库** | 通知栏先到且打码 `******`；需用户在手机点「复制验证码」 |
+
+**本地自检（不经过 MCP 进程）**
+
+```powershell
+cd E:\PTaas\mcp-adb-sms
+python test_parser.py
+python test_local.py
+```
+
+期望：`sms_sample_count` ≥ 1。本地 OK 但 MCP 仍 0 → 一定是 **未 Reload MCP**。
+
 ## 安全说明
 
 - 仅读取 **USB 连接的本机设备** 短信
