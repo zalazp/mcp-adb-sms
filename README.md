@@ -42,6 +42,8 @@ cd mcp-adb-sms
 py -3.12 -m pip install -r requirements.txt
 ```
 
+> **注意**：`requirements.txt` 已将 `mcp` 限制在 `<2`。MCP Python SDK 2.x 移除了 `FastMCP`，若误装 2.x，Cursor 会报 `Connection closed` 且 `server.py` 无法启动。
+
 ### 配置手机号（必填）
 
 手机号**不由 adb 读取**，请自行写入 `devices.json`：
